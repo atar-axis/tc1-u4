@@ -1,8 +1,13 @@
 #include <STC15F2K60S2.h>
 #include <intrins.h>
 
-#define LOW  0
-#define HIGH 1
+#define LOW   0
+#define HIGH  1
+#define FALSE 0
+#define TRUE  1
+
+#define CLR_BIT(p,n) ((p) &= ~(1 << (n)))
+#define SET_BIT(p,n) ((p) |= (1 << (n)))
 
 // I/O Ports
 #define I_BUTTON      P34
@@ -15,12 +20,10 @@
 #define BOOT    1
 #define ONLINE  2
 
-
 volatile int state;
 volatile int button_changed;
 volatile int button_state;
 volatile int avr_online_state;
-
 
 void timer0_ISR (void) interrupt 1
 {
@@ -35,22 +38,13 @@ void timer0_ISR (void) interrupt 1
 	TL0 = (65536 - 1000) % 256; // das Low-Byte in TL0
 
 	// Button debouncing using exponential moving average
-	// ? avg = alpha * avg + (1 - alpha) * input, alpha < 1
-	avg_button = 0.9 * avg_button + 0.1 * (I_BUTTON * 10);
-	// avg_button     = (avg_button * 9     + I_BUTTON * 100)     / 10;
-	avg_avr_online = (avg_avr_online * 9 + I_AVR_ONLINE * 100) / 10;
+	// avg = alpha * avg + (1 - alpha) * input, alpha < 1
+	// TODO: inefficient, replace
+	avg_button     = 0.9 * avg_button + 0.1 * (I_BUTTON * 10);
+	avg_avr_online = 0.9 * avg_avr_online + 0.1 * (I_AVR_ONLINE * 10);
 
-	if (avg_button > 5) {
-		new_button_state = HIGH;
-	} else {
-		new_button_state = LOW;
-	}
-
-	if (avg_avr_online > 50) {
-		new_avr_online_state = HIGH;
-	} else {
-		new_avr_online_state = LOW;
-	}
+	(avg_button > 5) ? (new_button_state = HIGH) : (new_button_state = LOW);
+	(avg_avr_online > 5) ? (new_avr_online_state = HIGH) : (new_avr_online_state = LOW);
 
 	if (new_button_state != button_state) {
 		button_state = new_button_state;
@@ -71,24 +65,25 @@ void setup()
 	// since we need the internal PullUps
 
 	// P35 (O_BOOST): PushPull Output
-	P3M0 |= 1 << 5;
-	P3M1 &= ~(0 << 5);
+	SET_BIT(P3M0, 5);
+	CLR_BIT(P3M1, 5);
 
 	// P32 (O_AVR_BUTTON): PushPull Output
-	P3M0 |= 1 << 2;
-	P3M1 &= ~(0 << 2);
+	SET_BIT(P3M1, 2);
+	CLR_BIT(P3M1, 2);
 
 	// Init States
 	state = SLEEP;
-	button_changed = 0;
+	
+	button_changed = FALSE;
 	button_state = HIGH;
 	avr_online_state = LOW;
 
 	// Init I/O's
 	O_AVR_BUTTON = HIGH;
 	O_BOOST = LOW;
-	I_BUTTON = 1;     // set to weak high => pullups!
-	I_AVR_ONLINE = 1; // set to weak high => pullups!
+	I_BUTTON = HIGH;     // set to weak high => pullups!
+	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
 
 	// Timers
 	TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, Manual Reload
@@ -126,14 +121,11 @@ void main()
 			// deactivate timer, enable interrupt2, ...
 
 			if (button_changed && button_state == LOW) {
-				//button_changed = 0;
 				O_AVR_BUTTON = LOW;
 				delay(1); // otherwise the fw hangs up
 				O_BOOST = HIGH;
 				state = BOOT;
 			}
-
-
 			break;
 
 		case BOOT:
@@ -143,7 +135,6 @@ void main()
 				state = ONLINE;
 
 			// TODO: Timeout
-
 			break;
 
 		case ONLINE:
@@ -152,11 +143,11 @@ void main()
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
 				state = SLEEP;
-				//button_changed = 0; // clear the button event, otherwise you cannot shut down
 			}
 			break;
 
 		default:
+			state = SLEEP;
 			break;
 		}
 
