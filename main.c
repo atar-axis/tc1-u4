@@ -25,6 +25,12 @@ volatile int button_changed;
 volatile int button_state;
 volatile int avr_online_state;
 
+
+void extInt2_ISR (void) interrupt 10
+{
+	_nop_();
+}
+
 void timer0_ISR (void) interrupt 1
 {
 	static float avg_button = 10;
@@ -34,8 +40,8 @@ void timer0_ISR (void) interrupt 1
 	int new_avr_online_state;
 
 	// Increment Counter to shorten overflow time
-	TH0 = (65536 - 1000) / 256; // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
-	TL0 = (65536 - 1000) % 256; // das Low-Byte in TL0
+	TH0 = (65536 - 100) / 256; // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
+	TL0 = (65536 - 100) % 256; // das Low-Byte in TL0
 
 	// Button debouncing using exponential moving average
 	// avg = alpha * avg + (1 - alpha) * input, alpha < 1
@@ -85,11 +91,11 @@ void setup()
 	I_BUTTON = HIGH;     // set to weak high => pullups!
 	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
 
-	// Timers
+	// Timers & Interrupts
+	SET_BIT(INT_CLKO, 4);         // Interrupt on falling edge of INT2/P34 (Button)
 	TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, Manual Reload
 	ET0 = 1;                      // Enable Timer 0 Interrupts
 	TR0 = 1;                      // Start Timer 0 Running
-	EA = 1;                       // Global Interrupt Enable
 }
 
 void delay(int ms)
@@ -112,20 +118,24 @@ void delay(int ms)
 void main()
 {
 	setup();
+	EA = 1; // Global Interrupt Enable
 
 	while(1)
 	{
 		switch (state) {
 		case SLEEP:
-			// TODO: POWER SAVING OPTIONS
-			// deactivate timer, enable interrupt2, ...
+			
+			PCON = 0x02; // Stop/PowerDown Mode
 
-			if (button_changed && button_state == LOW) {
-				O_AVR_BUTTON = LOW;
-				delay(1); // otherwise the fw hangs up
-				O_BOOST = HIGH;
-				state = BOOT;
-			}
+			// Normally we would check here for (button_changed && button_state == LOW)
+			// but debouncing would take too much time, we would enter powerDown mode again
+		  // before the button is debounced.
+		
+			O_AVR_BUTTON = LOW;
+			delay(1); // otherwise the fw hangs up
+			O_BOOST = HIGH;
+			state = BOOT;
+			
 			break;
 
 		case BOOT:
