@@ -1,9 +1,9 @@
-C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 02:34:02 PAGE 1   
+C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 05:10:32 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MAIN
 OBJECT MODULE PLACED IN .\Objects\main.obj
-COMPILER INVOKED BY: C:\Program Files\Keil\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Li
+COMPILER INVOKED BY: C:\Program Files\Keil\C51\BIN\C51.EXE main.c OPTIMIZE(0,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Li
                     -stings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
 
 line level    source
@@ -11,194 +11,189 @@ line level    source
    1          #include <STC15F2K60S2.h>
    2          #include <intrins.h>
    3          
-   4          #define O_BOOST       P35
-   5          #define I_AVR_ONLINE  P33 // PD2
-   6          #define O_AVR_BUTTON  P32 // PD1
-   7          #define I_BUTTON      P34
-   8          
-   9          // states
-  10          #define SLEEP   0
-  11          #define BOOT    1
-  12          #define ONLINE  2
-  13          
-  14          #define LOW  0
-  15          #define HIGH 1
-  16          
-  17          int state;
-  18          int button_changed;
-  19          int button_state;
-  20          
-  21          int avr_online_state;
-  22          
+   4          #define LOW  0
+   5          #define HIGH 1
+   6          
+   7          // I/O Ports
+   8          #define I_BUTTON      P34
+   9          #define I_AVR_ONLINE  P33 // PD2
+  10          #define O_BOOST       P35
+  11          #define O_AVR_BUTTON  P32 // PD1
+  12          
+  13          // States
+  14          #define SLEEP   0
+  15          #define BOOT    1
+  16          #define ONLINE  2
+  17          
+  18          
+  19          volatile int state;
+  20          volatile int button_changed;
+  21          volatile int button_state;
+  22          volatile int avr_online_state;
   23          
   24          
-  25          
-  26          void timer0_ISR (void) interrupt 1
-  27          {
-  28   1        static float avg_button = 10;
-  29   1        static float avg_avr_online = 10;
-  30   1        
-  31   1        int new_button_state;
-  32   1        int new_avr_online_state;
-  33   1        
-  34   1        // Increment Counter to shorten overflow time
-  35   1        //TH0 = (65536 - 1000)/256;     // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
-  36   1        //TL0 = (65536 - 1000)%256;     // das Low-Byte in TL0
-  37   1        
-  38   1        // Button entprellen
-  39   1        
-  40   1      
-  41   1      
-  42   1        avg_button     = (avg_button * 9+I_BUTTON * 10) / 10;
-  43   1        avg_avr_online = (avg_avr_online * 9+I_AVR_ONLINE * 10) / 10;
-  44   1        
-  45   1        if (avg_button > 5) {
-  46   2              new_button_state = HIGH;
-  47   2        } else {
-  48   2              new_button_state = LOW;
-  49   2        }
-  50   1        
-  51   1        if (avg_avr_online > 5) {
-  52   2              new_avr_online_state = HIGH;
-  53   2        } else {
-  54   2              new_avr_online_state = LOW;
-C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 02:34:02 PAGE 2   
+  25          void timer0_ISR (void) interrupt 1
+  26          {
+  27   1        static float avg_button = 100;
+  28   1        static float avg_avr_online = 100;
+  29   1      
+  30   1        int new_button_state;
+  31   1        int new_avr_online_state;
+  32   1      
+  33   1        // Increment Counter to shorten overflow time
+  34   1        TH0 = (65536 - 1000)/256;     // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
+  35   1        TL0 = (65536 - 1000)%256;     // das Low-Byte in TL0
+  36   1      
+  37   1        // Button entprellen
+  38   1      
+  39   1      
+  40   1        avg_button     = (avg_button * 9     + I_BUTTON * 100)     / 10;
+  41   1        avg_avr_online = (avg_avr_online * 9 + I_AVR_ONLINE * 100) / 10;
+  42   1      
+  43   1        if (avg_button > 50) {
+  44   2          new_button_state = HIGH;
+  45   2        } else {
+  46   2          new_button_state = LOW;
+  47   2        }
+  48   1      
+  49   1        if (avg_avr_online > 50) {
+  50   2          new_avr_online_state = HIGH;
+  51   2        } else {
+  52   2          new_avr_online_state = LOW;
+  53   2        }
+  54   1      
+C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 05:10:32 PAGE 2   
 
-  55   2        }
-  56   1        
-  57   1        if (new_button_state != button_state) {
-  58   2          button_state = new_button_state;
-  59   2          button_changed = 1;
-  60   2        }
-  61   1        
-  62   1        if (new_avr_online_state != avr_online_state) {
-  63   2          avr_online_state = new_avr_online_state;
-  64   2        }
-  65   1        
-  66   1      }
+  55   1      
+  56   1        if (new_button_state != button_state) {
+  57   2          button_state = new_button_state;
+  58   2          button_changed = 1;
+  59   2        }
+  60   1      
+  61   1        if (new_avr_online_state != avr_online_state) {
+  62   2          avr_online_state = new_avr_online_state;
+  63   2        }
+  64   1        
+  65   1      }
+  66          
   67          
-  68          
-  69          void setup()
-  70          {
-  71   1        // P33 (I_AVR_ONLINE) to Input only
-  72   1        P3M0 &= ~(0 << 3);
-  73   1        P3M1 |= 1 << 3;
-  74   1        
-  75   1        // P34 (I_BUTTON) to Input only
-  76   1        P3M0 &= ~(0 << 4);
-  77   1        P3M1 |= 1 << 4;
-  78   1        
-  79   1        // P35 (O_BOOST) to PushPull Output
-  80   1        P3M0 |= 1 << 5;
-  81   1        P3M1 &= ~(0 << 5);
-  82   1        
-  83   1        // P32 (O_AVR_BUTTON) to PushPull Output
-  84   1        P3M0 |= 1 << 2;
-  85   1        P3M1 &= ~(0 << 2);
-  86   1      
-  87   1        // initial states
-  88   1        state = SLEEP;
-  89   1        button_changed = 0;
-  90   1        button_state = HIGH;
-  91   1        avr_online_state = LOW;
-  92   1        
+  68          void setup()
+  69          {
+  70   1        // P33 (I_AVR_ONLINE) to Input only (HiZ)
+  71   1        //P3M0 &= ~(0 << 3);
+  72   1        //P3M1 |= 1 << 3;
+  73   1      
+  74   1        // P34 (I_BUTTON) to Input only (HiZ)
+  75   1        //P3M0 &= ~(0 << 4);
+  76   1        //P3M1 |= 1 << 4;
+  77   1      
+  78   1        // P35 (O_BOOST) to PushPull Output
+  79   1        P3M0 |= 1 << 5;
+  80   1        P3M1 &= ~(0 << 5);
+  81   1      
+  82   1        // P32 (O_AVR_BUTTON) to PushPull Output
+  83   1        P3M0 |= 1 << 2;
+  84   1        P3M1 &= ~(0 << 2);
+  85   1      
+  86   1        // Init States
+  87   1        state = SLEEP;
+  88   1        button_changed = 0;
+  89   1        button_state = HIGH;
+  90   1        avr_online_state = LOW;
+  91   1        
+  92   1        // Init I/O's
   93   1        O_AVR_BUTTON = HIGH;
   94   1        O_BOOST = LOW;
-  95   1        
-  96   1        // Timers
-  97   1        TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, No Auto Reload
-  98   1        ET0 = 1;                      // Enable Timer 0 Interrupts
-  99   1        TR0 = 1;                      // Start Timer 0 Running
- 100   1        EA = 1;                       // Global Interrupt Enable
- 101   1      
- 102   1      }
- 103          
- 104          void delay(int ms)
- 105          {
- 106   1          unsigned int j  =   0;
- 107   1          unsigned int g  =   0;
- 108   1          for(j=0;j<ms;j++)
- 109   1          {
- 110   2              for(g=0;g<600;g++)
- 111   2              {
- 112   3                  _nop_();
- 113   3                  _nop_();
+  95   1        I_BUTTON = 1; // quasi-bidirectional => pullups!
+  96   1        I_AVR_ONLINE = 1; // quasi-bidirectional => pullups!
+  97   1      
+  98   1        // Timers
+  99   1        TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, No Auto Reload
+ 100   1        ET0 = 1;                      // Enable Timer 0 Interrupts
+ 101   1        TR0 = 1;                      // Start Timer 0 Running
+ 102   1        EA = 1;                       // Global Interrupt Enable
+ 103   1      
+ 104   1      }
+ 105          
+ 106          void delay(int ms)
+ 107          {
+ 108   1          unsigned int j  =   0;
+ 109   1          unsigned int g  =   0;
+ 110   1          for(j=0;j<ms;j++)
+ 111   1          {
+ 112   2              for(g=0;g<600;g++)
+ 113   2              {
  114   3                  _nop_();
  115   3                  _nop_();
  116   3                  _nop_();
-C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 02:34:02 PAGE 3   
+C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 05:10:32 PAGE 3   
 
- 117   3              }
- 118   2          }
- 119   1      }
- 120          
- 121          void main()
- 122          {
- 123   1        setup();
- 124   1        
- 125   1        delay(5000);
- 126   1        O_AVR_BUTTON = LOW;
- 127   1        O_BOOST = HIGH;
- 128   1        delay(500);
- 129   1        O_AVR_BUTTON = HIGH;
- 130   1        
- 131   1        while(1){}
- 132   1        
- 133   1        
- 134   1      /*
- 135   1        while(1)
- 136   1        {
- 137   1          
- 138   1          O_AVR_BUTTON = button_state;
- 139   1      
- 140   1          
- 141   1          switch (state) {
- 142   1          case SLEEP:
- 143   1            
- 144   1            // POWER SAVING OPTIONS,
- 145   1            // deactivate timer, enable interrupt2, ...
- 146   1          
- 147   1            if (button_changed && button_state == LOW) {
- 148   1              button_changed = 0;
- 149   1              O_BOOST = HIGH;
- 150   1              state = BOOT;
- 151   1            }
- 152   1            break;
- 153   1            
- 154   1          case BOOT:
- 155   1            if (avr_online_state == HIGH)
- 156   1              state = ONLINE;
- 157   1            
- 158   1            // TODO: Timeout
- 159   1      
- 160   1            break;
- 161   1            
- 162   1          case ONLINE:
- 163   1            if (avr_online_state == LOW) {
- 164   1              O_BOOST = LOW;
- 165   1              state = SLEEP;
- 166   1            }
- 167   1            break;
- 168   1          
- 169   1          default:
- 170   1            break;
- 171   1          }
- 172   1      
- 173   1        }
- 174   1      */
- 175   1      }
- 176          
- 177          
-
-C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 02:34:02 PAGE 4   
+ 117   3                  _nop_();
+ 118   3                  _nop_();
+ 119   3              }
+ 120   2          }
+ 121   1      }
+ 122          
+ 123          void main()
+ 124          {
+ 125   1        setup();
+ 126   1      
+ 127   1        while(1)
+ 128   1        {
+ 129   2          switch (state) {
+ 130   3          case SLEEP:
+ 131   3            
+ 132   3            // TODO: POWER SAVING OPTIONS
+ 133   3            // deactivate timer, enable interrupt2, ...
+ 134   3      
+ 135   3            if (button_changed && button_state == LOW) {
+ 136   4              button_changed = 0;
+ 137   4              O_AVR_BUTTON = LOW;
+ 138   4              delay(1); // otherwise the fw hangs up
+ 139   4              O_BOOST = HIGH;
+ 140   4              state = BOOT;
+ 141   4            }
+ 142   3      
+ 143   3      
+ 144   3            break;
+ 145   3      
+ 146   3          case BOOT:
+ 147   3            O_AVR_BUTTON = button_state;
+ 148   3          
+ 149   3            if (avr_online_state == HIGH)
+ 150   3              state = ONLINE;
+ 151   3      
+ 152   3            // TODO: Timeout
+ 153   3      
+ 154   3            break;
+ 155   3      
+ 156   3          case ONLINE:
+ 157   3            O_AVR_BUTTON = button_state;
+ 158   3      
+ 159   3            if (avr_online_state == LOW) {
+ 160   4              O_BOOST = LOW;
+ 161   4              state = SLEEP;
+ 162   4              button_changed = 0; // clear the button event, otherwise you cannot shut down
+ 163   4            }
+ 164   3            break;
+ 165   3      
+ 166   3          default:
+ 167   3            break;
+ 168   3          }
+ 169   2      
+ 170   2      }
+ 171   1      
+ 172   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    433    ----
+   CODE SIZE        =    610    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
+C51 COMPILER V9.59.0.0   MAIN                                                              09/10/2018 05:10:32 PAGE 4   
+
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =     16       4
+   DATA SIZE        =     26    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.

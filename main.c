@@ -16,40 +16,42 @@
 #define ONLINE  2
 
 
-int state;
-int button_changed;
-int button_state;
-int avr_online_state;
+volatile int state;
+volatile int button_changed;
+volatile int button_state;
+volatile int avr_online_state;
 
 
 void timer0_ISR (void) interrupt 1
 {
-	static float avg_button = 10;
-	static float avg_avr_online = 10;
+	static float avg_button = 100;
+	static float avg_avr_online = 100;
 
 	int new_button_state;
 	int new_avr_online_state;
 
 	// Increment Counter to shorten overflow time
-	//TH0 = (65536 - 1000)/256;     // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
-	//TL0 = (65536 - 1000)%256;     // das Low-Byte in TL0
+	TH0 = (65536 - 1000)/256;     // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
+	TL0 = (65536 - 1000)%256;     // das Low-Byte in TL0
 
 	// Button entprellen
 
-	avg_button     = (avg_button * 9+I_BUTTON * 10) / 10;
-	avg_avr_online = (avg_avr_online * 9+I_AVR_ONLINE * 10) / 10;
 
-	if (avg_button > 5) {
+	avg_button     = (avg_button * 9     + I_BUTTON * 100)     / 10;
+	avg_avr_online = (avg_avr_online * 9 + I_AVR_ONLINE * 100) / 10;
+
+	if (avg_button > 50) {
 		new_button_state = HIGH;
 	} else {
 		new_button_state = LOW;
 	}
 
-	if (avg_avr_online > 5) {
+	if (avg_avr_online > 50) {
 		new_avr_online_state = HIGH;
 	} else {
 		new_avr_online_state = LOW;
 	}
+
 
 	if (new_button_state != button_state) {
 		button_state = new_button_state;
@@ -66,12 +68,12 @@ void timer0_ISR (void) interrupt 1
 void setup()
 {
 	// P33 (I_AVR_ONLINE) to Input only (HiZ)
-	P3M0 &= ~(0 << 3);
-	P3M1 |= 1 << 3;
+	//P3M0 &= ~(0 << 3);
+	//P3M1 |= 1 << 3;
 
 	// P34 (I_BUTTON) to Input only (HiZ)
-	P3M0 &= ~(0 << 4);
-	P3M1 |= 1 << 4;
+	//P3M0 &= ~(0 << 4);
+	//P3M1 |= 1 << 4;
 
 	// P35 (O_BOOST) to PushPull Output
 	P3M0 |= 1 << 5;
@@ -87,9 +89,11 @@ void setup()
 	button_state = HIGH;
 	avr_online_state = LOW;
 	
-	// Init Outputs
+	// Init I/O's
 	O_AVR_BUTTON = HIGH;
 	O_BOOST = LOW;
+	I_BUTTON = 1; // quasi-bidirectional => pullups!
+	I_AVR_ONLINE = 1; // quasi-bidirectional => pullups!
 
 	// Timers
 	TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, No Auto Reload
@@ -124,18 +128,24 @@ void main()
 	{
 		switch (state) {
 		case SLEEP:
+			
 			// TODO: POWER SAVING OPTIONS
 			// deactivate timer, enable interrupt2, ...
 
 			if (button_changed && button_state == LOW) {
 				button_changed = 0;
 				O_AVR_BUTTON = LOW;
+				delay(1); // otherwise the fw hangs up
 				O_BOOST = HIGH;
 				state = BOOT;
 			}
+
+
 			break;
 
 		case BOOT:
+			O_AVR_BUTTON = button_state;
+		
 			if (avr_online_state == HIGH)
 				state = ONLINE;
 
@@ -149,14 +159,14 @@ void main()
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
 				state = SLEEP;
+				button_changed = 0; // clear the button event, otherwise you cannot shut down
 			}
 			break;
 
 		default:
 			break;
 		}
-	}
 
 }
 
-
+}
