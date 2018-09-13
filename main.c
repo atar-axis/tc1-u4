@@ -39,10 +39,6 @@ void timer0_ISR (void) interrupt 1
 	int new_button_state;
 	int new_avr_online_state;
 
-	// Increment Counter to shorten overflow time
-	TH0 = (65536 - 100) / 256; // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
-	TL0 = (65536 - 100) % 256; // das Low-Byte in TL0
-
 	// Button debouncing using exponential moving average
 	// avg = alpha * avg + (1 - alpha) * input, alpha < 1
 	// TODO: inefficient, replace
@@ -65,6 +61,8 @@ void timer0_ISR (void) interrupt 1
 }
 
 
+// TODO: timer 1 as system clock
+
 void setup()
 {
 	// Keep P33 (I_AVR_ONLINE) and P34 (I_BUTTON) as Quasi-Bidirectional
@@ -80,39 +78,46 @@ void setup()
 
 	// Init States
 	state = SLEEP;
-	
+
 	button_changed = FALSE;
 	button_state = HIGH;
 	avr_online_state = LOW;
 
 	// Init I/O's
-	O_AVR_BUTTON = HIGH;
+	O_AVR_BUTTON = LOW;  // we can keep this signal low since the ATmega is not yet up, even if low means "pressed"
 	O_BOOST = LOW;
 	I_BUTTON = HIGH;     // set to weak high => pullups!
 	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
 
 	// Timers & Interrupts
 	SET_BIT(INT_CLKO, 4);         // Interrupt on falling edge of INT2/P34 (Button)
-	TMOD = (TMOD & 0xF0) | 0x01;  // Set T/C0 Mode 1, 16Bit, Manual Reload
+	TMOD = (TMOD & 0xF0) | 0x00;  // Set T/C0 Mode 0, 16Bit, Auto Reload
+	AUXR |= 0x80;                 // Timer 0 in 1T mode, not 12T mode.
+	// setting reload values to shorten overflow time
+	// any value written into TH0/TL0 is passed to the reload registers
+	// RL_TH0/TL0 as long as TR0 = 0, if TR0=1 the values are written into
+	// the hidden reload registers only
+	// timer frequency = system freq / (65536 - [RL_TH0, RL_TL0]) / 2
+	TH0 = (65536 - 100) / 256;    // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
+	TL0 = (65536 - 100) % 256;    // das Low-Byte in TL0
 	ET0 = 1;                      // Enable Timer 0 Interrupts
-	TR0 = 1;                      // Start Timer 0 Running
-}
+	TR0 = 1;                      // Start Timer 0 Running}
 
 void delay(int ms)
 {
-    unsigned int j  =   0;
-    unsigned int g  =   0;
-    for(j=0;j<ms;j++)
-    {
-        for(g=0;g<600;g++)
-        {
-            _nop_();
-            _nop_();
-            _nop_();
-            _nop_();
-            _nop_();
-        }
-    }
+	unsigned int j  =   0;
+	unsigned int g  =   0;
+	for(j=0;j<ms;j++)
+	{
+		for(g=0;g<600;g++)
+		{
+			_nop_();
+			_nop_();
+			_nop_();
+			_nop_();
+			_nop_();
+		}
+	}
 }
 
 void main()
@@ -124,18 +129,17 @@ void main()
 	{
 		switch (state) {
 		case SLEEP:
-			
 			PCON = 0x02; // Stop/PowerDown Mode
 
 			// Normally we would check here for (button_changed && button_state == LOW)
 			// but debouncing would take too much time, we would enter powerDown mode again
-		  // before the button is debounced.
-		
+			// before the button is debounced.
+
 			O_AVR_BUTTON = LOW;
 			delay(1); // otherwise the fw hangs up
-			O_BOOST = HIGH;
+			O_BOOST = HIGH; // TODO: maybe switch?
 			state = BOOT;
-			
+
 			break;
 
 		case BOOT:
