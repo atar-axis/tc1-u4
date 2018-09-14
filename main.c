@@ -1,5 +1,6 @@
 #include <STC15F2K60S2.h>
-#include <intrins.h>
+#include <intrins.h> // _nop_();
+#include <limits.h>  // <DATATYPE>_MAX, ...
 
 #define LOW   0
 #define HIGH  1
@@ -20,15 +21,17 @@
 #define BOOT    1
 #define ONLINE  2
 
-volatile int state;
-volatile int system_tick;
+int state;
+unsigned long int state_start_time;
+
+volatile unsigned long int system_tick;
 
 volatile int button_changed;
 volatile int button_state;
 volatile int avr_online_state;
 
 
-void extInt2_ISR (void) interrupt 10
+void extInt2_ISR(void) interrupt 10
 {
 	// do nothing, INT2's only purpose is to wake up the system
 }
@@ -37,7 +40,7 @@ void timer0_ISR(void) interrupt 1
 {
 	system_tick++;
 
-	/* NOTE: How long takes a system tick?
+	/* NOTE: How long does a system tick take?
 	 *
 	 * The calculation goes like:
 	 * tick frequenycy =
@@ -62,7 +65,7 @@ void timer1_ISR(void) interrupt 3
 	int new_button_state;
 	int new_avr_online_state;
 
-	// Button debouncing using exponential moving average
+	// Button are debounced using exponential moving average
 	// avg = alpha * avg + (1 - alpha) * input, alpha < 1
 	// TODO: inefficient, replace
 	avg_button     = 0.9 * avg_button + 0.1 * (I_BUTTON * 10);
@@ -97,8 +100,10 @@ void setup()
 	CLR_BIT(P3M1, 2);
 
 	// Init States
-	state = SLEEP;
 	system_tick = 0;
+
+	state = SLEEP;
+	state_start_time = system_tick;
 
 	button_changed = FALSE;
 	button_state = HIGH;
@@ -111,7 +116,7 @@ void setup()
 	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
 
 	// Timers & Interrupts
-	SET_BIT(INT_CLKO, 4);         // Interrupt on falling edge of INT2/P34 (Button)
+	SET_BIT(INT_CLKO, 4); // Interrupt on falling edge of INT2/P34 (Button)
 
 	// Timer 0
 	TMOD &= 0xF0;     // Mode 0, 16Bit, Auto Reload
@@ -121,14 +126,15 @@ void setup()
 
 	// Timer 1
 	TMOD &= 0x0F;      // Set T/C1 Mode 0, 16Bit, Auto Reload
-	CLR_BIT(AUXR, 6);  // Timer 1 in 12T mode, not 1T mode.
+	CLR_BIT(AUXR, 6);  // Timer 1 in 12T mode, not 1T mode
+	TH1 = (65536 - 500) / 256; // High byte reload value
+	TL1 = (65536 - 500) % 256; // Low byte reload value
+
 	/* NOTE on Reload Values for STC15 uC:
 	 * Any value written into TH0/TL0 are passed to the reload registers
 	 * RL_TH0/TL0 as long as TR0=0.
 	 * If TR0=1, then the values are written into the hidden reload registers only.
 	 */
-	TH1 = (65536 - 500) / 256; // High byte reload value
-	TL1 = (65536 - 500) % 256; // Low byte reload value
 
 	ET0 = 1; // Enable Timer 0 interrupts
 	ET1 = 1; // Enable Timer 1 interrupts
@@ -137,21 +143,20 @@ void setup()
 	TR1 = 1; // Start Timer 1
 }
 
-void delay(int ms)
+unsigned long int ticks_since(unsigned long since)
 {
-	unsigned int j  =   0;
-	unsigned int g  =   0;
-	for(j=0;j<ms;j++)
-	{
-		for(g=0;g<600;g++)
-		{
-			_nop_();
-			_nop_();
-			_nop_();
-			_nop_();
-			_nop_();
-		}
-	}
+	unsigned long int now = system_tick;
+
+	if (now >= since)
+		return (now - since);
+
+	return (now + (1 + ULONG_MAX - since));
+}
+
+void set_new_state(int new_state)
+{
+	state_start_time = system_tick;
+	state = new_state;
 }
 
 void main()
@@ -159,30 +164,34 @@ void main()
 	setup();
 	EA = 1; // Global Interrupt Enable
 
-	while(1)
+	while (1)
 	{
 		switch (state) {
 		case SLEEP:
 			PCON = 0x02; // Stop/PowerDown Mode
+			_nop_();     // We need at least on NOP after waking up
 
 			// Normally we would check here for (button_changed && button_state == LOW)
 			// but debouncing would take too much time, we would enter powerDown mode again
 			// before the button is debounced.
 
-			O_AVR_BUTTON = LOW;
-			delay(1); // TODO: otherwise the fw hangs up, maybe we should switch both?
-			O_BOOST = HIGH;
-			state = BOOT;
+			O_BOOST = HIGH;     // powering the booster, avr, 5v rail
+			O_AVR_BUTTON = LOW; // notify avr about the pressed button
 
+			set_new_state(BOOT);
 			break;
 
 		case BOOT:
 			O_AVR_BUTTON = button_state;
 
-			if (avr_online_state == HIGH)
-				state = ONLINE;
+			if (avr_online_state == HIGH){
+				set_new_state(ONLINE);
+			}
 
-			// TODO: Timeout
+			if (ticks_since(state_start_time) > 1000){
+				set_new_state(SLEEP);
+			}
+
 			break;
 
 		case ONLINE:
@@ -190,12 +199,12 @@ void main()
 
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
-				state = SLEEP;
+				set_new_state(SLEEP);
 			}
 			break;
 
 		default:
-			state = SLEEP;
+			set_new_state(SLEEP);
 			break;
 		}
 
