@@ -21,6 +21,8 @@
 #define ONLINE  2
 
 volatile int state;
+volatile int system_tick;
+
 volatile int button_changed;
 volatile int button_state;
 volatile int avr_online_state;
@@ -28,10 +30,31 @@ volatile int avr_online_state;
 
 void extInt2_ISR (void) interrupt 10
 {
-	_nop_();
+	// do nothing, INT2's only purpose is to wake up the system
 }
 
-void timer0_ISR (void) interrupt 1
+void timer0_ISR(void) interrupt 1
+{
+	system_tick++;
+
+	/* NOTE: How long takes a system tick?
+	 *
+	 * The calculation goes like:
+	 * tick frequenycy =
+	 * system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
+	 *
+	 * The '12' is because we set the AUXR register to call the
+	 * timer ISR only every 12th clock cycle.
+	 *
+	 * Supposing that the system clock is set to 12.000 MHz, and
+	 * [RL_TH0, RL_TL0] is "65536 - 1000", then a system-tick would be
+	 * 12 MHz / 12 / 1000 = 1 kHz.
+	 *
+	 * Therefore a system tick would take 1ms
+	 */
+}
+
+void timer1_ISR(void) interrupt 3
 {
 	static float avg_button = 10;
 	static float avg_avr_online = 10;
@@ -60,9 +83,6 @@ void timer0_ISR (void) interrupt 1
 	}
 }
 
-
-// TODO: timer 1 as system clock
-
 void setup()
 {
 	// Keep P33 (I_AVR_ONLINE) and P34 (I_BUTTON) as Quasi-Bidirectional
@@ -73,11 +93,12 @@ void setup()
 	CLR_BIT(P3M1, 5);
 
 	// P32 (O_AVR_BUTTON): PushPull Output
-	SET_BIT(P3M1, 2);
+	SET_BIT(P3M0, 2);
 	CLR_BIT(P3M1, 2);
 
 	// Init States
 	state = SLEEP;
+	system_tick = 0;
 
 	button_changed = FALSE;
 	button_state = HIGH;
@@ -91,17 +112,30 @@ void setup()
 
 	// Timers & Interrupts
 	SET_BIT(INT_CLKO, 4);         // Interrupt on falling edge of INT2/P34 (Button)
-	TMOD = (TMOD & 0xF0) | 0x00;  // Set T/C0 Mode 0, 16Bit, Auto Reload
-	AUXR |= 0x80;                 // Timer 0 in 1T mode, not 12T mode.
-	// setting reload values to shorten overflow time
-	// any value written into TH0/TL0 is passed to the reload registers
-	// RL_TH0/TL0 as long as TR0 = 0, if TR0=1 the values are written into
-	// the hidden reload registers only
-	// timer frequency = system freq / (65536 - [RL_TH0, RL_TL0]) / 2
-	TH0 = (65536 - 100) / 256;    // TODO: Calculation?! Old: 1ms = 1000MZ, davon das High-Byte in TH0
-	TL0 = (65536 - 100) % 256;    // das Low-Byte in TL0
-	ET0 = 1;                      // Enable Timer 0 Interrupts
-	TR0 = 1;                      // Start Timer 0 Running}
+
+	// Timer 0
+	TMOD &= 0xF0;     // Mode 0, 16Bit, Auto Reload
+	CLR_BIT(AUXR, 7); // 12T Mode
+	TH0 = (65536 - 1000) / 256; // Reload values after overflow, High value
+	TL0 = (65536 - 1000) % 256; // Low value
+
+	// Timer 1
+	TMOD &= 0x0F;      // Set T/C1 Mode 0, 16Bit, Auto Reload
+	CLR_BIT(AUXR, 6);  // Timer 1 in 12T mode, not 1T mode.
+	/* NOTE on Reload Values for STC15 uC:
+	 * Any value written into TH0/TL0 are passed to the reload registers
+	 * RL_TH0/TL0 as long as TR0=0.
+	 * If TR0=1, then the values are written into the hidden reload registers only.
+	 */
+	TH1 = (65536 - 10000) / 256; // High byte reload value
+	TL1 = (65536 - 10000) % 256; // Low byte reload value
+
+	ET0 = 1; // Enable Timer 0 interrupts
+	ET1 = 1; // Enable Timer 1 interrupts
+
+	TR0 = 1; // Start Timer 0
+	TR1 = 1; // Start Timer 1
+}
 
 void delay(int ms)
 {
@@ -136,8 +170,8 @@ void main()
 			// before the button is debounced.
 
 			O_AVR_BUTTON = LOW;
-			delay(1); // otherwise the fw hangs up
-			O_BOOST = HIGH; // TODO: maybe switch?
+			delay(1); // TODO: otherwise the fw hangs up, maybe we should switch both?
+			O_BOOST = HIGH;
 			state = BOOT;
 
 			break;
@@ -165,6 +199,6 @@ void main()
 			break;
 		}
 
-}
+	}
 
 }
