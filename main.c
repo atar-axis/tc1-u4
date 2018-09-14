@@ -154,7 +154,7 @@ unsigned long int ticks_since(unsigned long since)
 	return (now + (1 + ULONG_MAX - since));
 }
 
-void set_new_state(int new_state)
+void set_state(int new_state)
 {
 	state_start_time = system_tick;
 	state = new_state;
@@ -171,7 +171,7 @@ void main()
 		case SLEEP:
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least on NOP after waking up
-			set_new_state(IDLE);
+			set_state(IDLE);
 
 			break;
 
@@ -179,7 +179,7 @@ void main()
 			if(button_changed && button_state == LOW){
 				O_BOOST = HIGH;     // powering the booster, avr, 5v rail
 				O_AVR_BUTTON = LOW; // notify avr about the pressed button
-				set_new_state(BOOT);
+				set_state(BOOT);
 			}
 
 			break;
@@ -188,11 +188,11 @@ void main()
 			O_AVR_BUTTON = button_state;
 
 			if (avr_online_state == HIGH){
-				set_new_state(ONLINE);
+				set_state(ONLINE);
 			}
 
 			if (ticks_since(state_start_time) > 1000){
-				set_new_state(SLEEP);
+				set_state(SLEEP);
 			}
 
 			break;
@@ -202,13 +202,13 @@ void main()
 
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
-				set_new_state(SLEEP);
+				set_state(SLEEP);
 			}
 
 			break;
 
 		default:
-			set_new_state(SLEEP);
+			set_state(SLEEP);
 			break;
 		}
 
