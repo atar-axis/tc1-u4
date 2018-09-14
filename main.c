@@ -110,7 +110,7 @@ void setup()
 	I_BUTTON = HIGH;     // set to weak high => pullups!
 	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
 
-	// Timers & Interrupts
+	// External Interrupts
 	SET_BIT(INT_CLKO, 4);         // Interrupt on falling edge of INT2/P34 (Button)
 
 	// Timer 0
