@@ -18,8 +18,9 @@
 
 // States
 #define SLEEP   0
-#define BOOT    1
-#define ONLINE  2
+#define IDLE    1
+#define BOOT    2
+#define ONLINE  3
 
 int state;
 unsigned long int state_start_time;
@@ -170,15 +171,17 @@ void main()
 		case SLEEP:
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least on NOP after waking up
+			set_new_state(IDLE);
 
-			// Normally we would check here for (button_changed && button_state == LOW)
-			// but debouncing would take too much time, we would enter powerDown mode again
-			// before the button is debounced.
+			break;
 
-			O_BOOST = HIGH;     // powering the booster, avr, 5v rail
-			O_AVR_BUTTON = LOW; // notify avr about the pressed button
+		case IDLE:
+			if(button_changed && button_state == LOW){
+				O_BOOST = HIGH;     // powering the booster, avr, 5v rail
+				O_AVR_BUTTON = LOW; // notify avr about the pressed button
+				set_new_state(BOOT);
+			}
 
-			set_new_state(BOOT);
 			break;
 
 		case BOOT:
@@ -201,6 +204,7 @@ void main()
 				O_BOOST = LOW;
 				set_new_state(SLEEP);
 			}
+
 			break;
 
 		default:
