@@ -127,8 +127,8 @@ void setup()
 	 * RL_TH0/TL0 as long as TR0=0.
 	 * If TR0=1, then the values are written into the hidden reload registers only.
 	 */
-	TH1 = (65536 - 10000) / 256; // High byte reload value
-	TL1 = (65536 - 10000) % 256; // Low byte reload value
+	TH1 = (65536 - 500) / 256; // High byte reload value
+	TL1 = (65536 - 500) % 256; // Low byte reload value
 
 	ET0 = 1; // Enable Timer 0 interrupts
 	ET1 = 1; // Enable Timer 1 interrupts
