@@ -14,7 +14,7 @@ Just grab any kind of USB-to-UART(3V3) Adapter, hook up...
 
 ## Upload / Flashing
 
-Download the STC-ISP Software here: http://www.stcmicro.com/rar/stc-isp6.86.rar
+Download the STC-ISP Software here: http://www.stcmicro.com/rar/stc-isp6.86.rar  
 Open it, leave everything except:
 * Input IRC frequency, set to 12.000 MHz
 
