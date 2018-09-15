@@ -170,7 +170,7 @@ void main()
 		switch (state) {
 		case SLEEP:
 			PCON = 0x02; // Stop/PowerDown Mode
-			_nop_();     // We need at least on NOP after waking up
+			_nop_();     // We need at least one NOP after waking up
 			set_state(IDLE);
 
 			break;
