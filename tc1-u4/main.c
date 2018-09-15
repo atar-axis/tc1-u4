@@ -61,7 +61,7 @@ void timer0_ISR(void) interrupt 1
 void timer1_ISR(void) interrupt 3
 {
 	// TODO: Way too long for an ISR...
-	
+
 	static float avg_button = 10;
 	static float avg_avr_online = 10;
 
