@@ -12,6 +12,9 @@ Just grab any kind of USB-to-UART(3V3) Adapter, hook up...
 * RXD to P2 and
 * GND to GND
 
+Alternatively you can either desolder it and use any kind of SOP8 ↔ DIP8 socket converter
+or a SOIC (SOP8) test clip.
+
 ## Upload / Flashing
 
 Download the STC-ISP Software here: http://www.stcmicro.com/rar/stc-isp6.86.rar  
