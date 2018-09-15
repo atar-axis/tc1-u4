@@ -47,8 +47,8 @@ void timer0_ISR(void) interrupt 1
 	 * tick frequenycy =
 	 * system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
 	 *
-	 * The '12' is because we set the AUXR register to call the
-	 * timer ISR only every 12th clock cycle.
+	 * The '12' is because we set the AUXR register to increment the
+	 * timer register only every 12th clock cycle.
 	 *
 	 * Supposing that the system clock is set to 12.000 MHz, and
 	 * [RL_TH0, RL_TL0] is "65536 - 1000", then a system-tick would be
