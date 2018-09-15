@@ -1,5 +1,5 @@
-# U4
-Alternative FW for U4 (STC15 8051 uC) on TransistorTester TC1.
+# TC1 U4
+Alternative firmware for U4 (STC15 8051 uC) on TransistorTester derivate TC1.
 Use in Combination with https://github.com/svn2github/transistortester
 
 ## Compilation
@@ -13,16 +13,17 @@ Just grab any kind of USB-to-UART(3V3) Adapter and hook up...
 * RXD to P2 and
 * GND to GND
 
-Alternatively you can either desolder it and use any kind of SOP8 ↔ DIP8 socket converter
+Alternatively you can either desolder it and use some SOP8 ↔ DIP8 socket converter
 or a SOIC (SOP8) test clip.
 
 ## Upload / Flashing
 
 Download the STC-ISP Software here: http://www.stcmicro.com/rar/stc-isp6.86.rar  
-Open it, leave everything except:
-* Input IRC frequency, set to 12.000 MHz
+Open it but leave everything as it is, except:
+* Input IRC frequency
+which is set to 12.000 MHz.
 
 Press "Open Code File" and select the firmware (u4.hex).
-Press "Download/Program" and now hook up 3V3 to VCC (power the IC).
+Press "Download/Program" and hook up 3V3 to VCC (power the IC).
 
 Wait for the firmware being uploaded.
