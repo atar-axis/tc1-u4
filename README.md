@@ -1,5 +1,6 @@
 # U4
-Alternative FW for U4 (STC15 8051 uC) on TransistorTester TC1
+Alternative FW for U4 (STC15 8051 uC) on TransistorTester TC1.
+Use in Combination with https://github.com/svn2github/transistortester
 
 ## Compilation
 
@@ -7,7 +8,7 @@ This project is for Keil's µVision IDE, which can be found here: http://www.kei
 
 ## Connection
 
-Just grab any kind of USB-to-UART(3V3) Adapter, hook up...
+Just grab any kind of USB-to-UART(3V3) Adapter and hook up...
 * TXD (Stick) to P1,
 * RXD to P2 and
 * GND to GND
