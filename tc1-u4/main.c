@@ -44,8 +44,7 @@ void timer0_ISR(void) interrupt 1
 	/* NOTE: How long does a system tick take?
 	 *
 	 * The calculation goes like:
-	 * tick frequenycy =
-	 * system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
+	 * tick frequenycy = system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
 	 *
 	 * The '12' is because we set the AUXR register to increment the
 	 * timer register only every 12th clock cycle.
@@ -61,7 +60,6 @@ void timer0_ISR(void) interrupt 1
 void timer2_ISR(void) interrupt 12 using 1
 {
 	// TODO: Way too long for an ISR...
-
 
 	static float avg_button = 10;
 	static float avg_avr_online = 10;
@@ -128,25 +126,25 @@ void setup()
 	CLR_BIT(AUXR, 7); // Timer 0 in 12T Mode
 	TH0 = (65536 - 1000) / 256; // Reload values after overflow, High value
 	TL0 = (65536 - 1000) % 256; // Low value
-	
+
 	// Timer 2
-	AUXR |= 0x04;		//Timer clock is 1T mode
-	T2L   = 0xA0;		//Initial timer value
-	T2H   = 0x15;		//Initial timer value
+	AUXR |= 0x04; //Timer clock is 1T mode
+	T2L   = 0xA0; //Initial timer value
+	T2H   = 0x15; //Initial timer value
 
 
-	/* NOTE on Reload Values for STC15 uC:
+	/* NOTE: Reload Values for STC15 uC:
 	 * Any value written into TH0/TL0 are passed to the reload registers
 	 * RL_TH0/TL0 as long as TR0=0.
 	 * If TR0=1, then the values are written into the hidden reload registers only.
 	 */
 
-	ET0 = 1; // Enable Timer 0 interrupts
-	SET_BIT(IE2, 2); // IE2, ET2: Enable Timer 2 interrupts
+	ET0 = 1;         // Enable Timer 0 interrupts
+	SET_BIT(IE2, 2); // Enable Timer 2 interrupts (IE2, ET2)
 
-	TR0 = 1; // Start Timer 0
-	AUXR |= 0x10;		// Start Timer 2
-	
+	TR0 = 1;      // Start Timer 0
+	AUXR |= 0x10; // Start Timer 2
+
 }
 
 unsigned long int ticks_since(unsigned long since)
@@ -177,7 +175,6 @@ void main()
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least one NOP after waking up
 			transition_to_state(IDLE);
-
 			break;
 
 		case IDLE:
@@ -186,7 +183,6 @@ void main()
 				O_AVR_BUTTON = LOW; // notify avr about the pressed button
 				transition_to_state(BOOT);
 			}
-
 			break;
 
 		case BOOT:
@@ -207,6 +203,7 @@ void main()
 
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
+				O_AVR_BUTTON = LOW;
 				transition_to_state(SLEEP);
 			}
 
