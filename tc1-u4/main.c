@@ -172,20 +172,25 @@ void main()
 	{
 		switch (state) {
 		case SLEEP:
+			O_BOOST = LOW;
+			O_AVR_BUTTON = LOW;
+
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least one NOP after waking up
+
 			transition_to_state(IDLE);
 			break;
 
 		case IDLE:
+			O_AVR_BUTTON = button_state;
+
 			if(button_state == LOW){
-				O_BOOST = HIGH;     // powering the booster, avr, 5v rail
-				O_AVR_BUTTON = LOW; // notify avr about the pressed button
 				transition_to_state(BOOT);
 			}
 			break;
 
 		case BOOT:
+			O_BOOST = HIGH; // powering the booster, avr, 5v rail
 			O_AVR_BUTTON = button_state;
 
 			if (avr_online_state == HIGH){
@@ -202,8 +207,6 @@ void main()
 			O_AVR_BUTTON = button_state;
 
 			if (avr_online_state == LOW) {
-				O_BOOST = LOW;
-				O_AVR_BUTTON = LOW;
 				transition_to_state(SLEEP);
 			}
 
