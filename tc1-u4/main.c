@@ -58,9 +58,10 @@ void timer0_ISR(void) interrupt 1
 	 */
 }
 
-void timer1_ISR(void) interrupt 3
+void timer2_ISR(void) interrupt 12 using 1
 {
 	// TODO: Way too long for an ISR...
+
 
 	static float avg_button = 10;
 	static float avg_avr_online = 10;
@@ -87,6 +88,7 @@ void timer1_ISR(void) interrupt 3
 	if (new_avr_online_state != avr_online_state) {
 		avr_online_state = new_avr_online_state;
 	}
+
 }
 
 void setup()
@@ -122,16 +124,16 @@ void setup()
 	SET_BIT(INT_CLKO, 4); // Interrupt on falling edge of INT2/P34 (Button)
 
 	// Timer 0
-	TMOD &= 0xF0;     // Mode 0, 16Bit, Auto Reload
-	CLR_BIT(AUXR, 7); // 12T Mode
+	TMOD &= 0xF0;     // T/C10 Mode 0, 16Bit, Auto Reload
+	CLR_BIT(AUXR, 7); // Timer 0 in 12T Mode
 	TH0 = (65536 - 1000) / 256; // Reload values after overflow, High value
 	TL0 = (65536 - 1000) % 256; // Low value
+	
+	// Timer 2
+	AUXR |= 0x04;		//Timer clock is 1T mode
+	T2L   = 0xA0;		//Initial timer value
+	T2H   = 0x15;		//Initial timer value
 
-	// Timer 1
-	TMOD &= 0x0F;      // Set T/C1 Mode 0, 16Bit, Auto Reload
-	CLR_BIT(AUXR, 6);  // Timer 1 in 12T mode, not 1T mode
-	TH1 = (65536 - 500) / 256; // High byte reload value
-	TL1 = (65536 - 500) % 256; // Low byte reload value
 
 	/* NOTE on Reload Values for STC15 uC:
 	 * Any value written into TH0/TL0 are passed to the reload registers
@@ -140,10 +142,11 @@ void setup()
 	 */
 
 	ET0 = 1; // Enable Timer 0 interrupts
-	ET1 = 1; // Enable Timer 1 interrupts
+	SET_BIT(IE2, 2); // IE2, ET2: Enable Timer 2 interrupts
 
 	TR0 = 1; // Start Timer 0
-	TR1 = 1; // Start Timer 1
+	AUXR |= 0x10;		// Start Timer 2
+	
 }
 
 unsigned long int ticks_since(unsigned long since)
@@ -156,7 +159,7 @@ unsigned long int ticks_since(unsigned long since)
 	return (now + (1 + ULONG_MAX - since));
 }
 
-void set_state(int new_state)
+void transition_to_state(int new_state)
 {
 	state_start_time = system_tick;
 	state = new_state;
@@ -173,7 +176,7 @@ void main()
 		case SLEEP:
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least one NOP after waking up
-			set_state(IDLE);
+			transition_to_state(IDLE);
 
 			break;
 
@@ -181,7 +184,7 @@ void main()
 			if(button_changed && button_state == LOW){
 				O_BOOST = HIGH;     // powering the booster, avr, 5v rail
 				O_AVR_BUTTON = LOW; // notify avr about the pressed button
-				set_state(BOOT);
+				transition_to_state(BOOT);
 			}
 
 			break;
@@ -190,11 +193,11 @@ void main()
 			O_AVR_BUTTON = button_state;
 
 			if (avr_online_state == HIGH){
-				set_state(ONLINE);
+				transition_to_state(ONLINE);
 			}
 
 			if (ticks_since(state_start_time) > 1000){
-				set_state(SLEEP);
+				transition_to_state(SLEEP);
 			}
 
 			break;
@@ -204,13 +207,13 @@ void main()
 
 			if (avr_online_state == LOW) {
 				O_BOOST = LOW;
-				set_state(SLEEP);
+				transition_to_state(SLEEP);
 			}
 
 			break;
 
 		default:
-			set_state(SLEEP);
+			transition_to_state(SLEEP);
 			break;
 		}
 
