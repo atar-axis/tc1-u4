@@ -181,7 +181,7 @@ void main()
 			break;
 
 		case IDLE:
-			if(button_changed && button_state == LOW){
+			if(button_state == LOW){
 				O_BOOST = HIGH;     // powering the booster, avr, 5v rail
 				O_AVR_BUTTON = LOW; // notify avr about the pressed button
 				transition_to_state(BOOT);
