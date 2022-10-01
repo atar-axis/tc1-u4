@@ -4,7 +4,7 @@ Use in Combination with https://github.com/svn2github/transistortester
 
 ## Compilation
 
-This project is for Keil's µVision IDE, which can be found here: http://www.keil.com/
+This project is for Keil µVision IDE, which can be found here: http://www.keil.com/
 You can either compile the fw yourself, use the latest precompiled fw in /Objects or download one of the released fw files.
 
 ## Connection
