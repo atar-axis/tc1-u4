@@ -22,14 +22,14 @@
 #define BOOT    2
 #define ONLINE  3
 
-int state;
+char state;
 unsigned long int state_start_time;
 
 volatile unsigned long int system_tick;
 
-volatile int button_changed;
-volatile int button_state;
-volatile int avr_online_state;
+volatile bit button_changed;
+volatile bit button_state;
+volatile bit avr_online_state;
 
 
 void extInt2_ISR(void) interrupt 10
@@ -44,7 +44,7 @@ void timer0_ISR(void) interrupt 1
 	/* NOTE: How long does a system tick take?
 	 *
 	 * The calculation goes like:
-	 * tick frequenycy = system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
+	 * tick frequency = system frequency / 12 / (65536 - [RL_TH0, RL_TL0])
 	 *
 	 * The '12' is because we set the AUXR register to increment the
 	 * timer register only every 12th clock cycle.
@@ -64,8 +64,8 @@ void timer2_ISR(void) interrupt 12 using 1
 	static float avg_button = 10;
 	static float avg_avr_online = 10;
 
-	int new_button_state;
-	int new_avr_online_state;
+	bit new_button_state;
+	bit new_avr_online_state;
 
 	// Button are debounced using exponential moving average
 	// avg = alpha * avg + (1 - alpha) * input, alpha < 1
@@ -78,9 +78,9 @@ void timer2_ISR(void) interrupt 12 using 1
 
 	if (new_button_state != button_state) {
 		button_state = new_button_state;
-		button_changed = 1;
+		button_changed = TRUE;
 	} else {
-		button_changed = 0;
+		button_changed = FALSE;
 	}
 
 	if (new_avr_online_state != avr_online_state) {
@@ -109,11 +109,11 @@ void setup()
 	state_start_time = system_tick;
 
 	button_changed = FALSE;
-	button_state = HIGH;
+	button_state = HIGH; // button unpressed
 	avr_online_state = LOW;
 
 	// Init I/O's
-	O_AVR_BUTTON = LOW;  // we can keep this signal low since the ATmega is not yet up, even if low means "pressed"
+	O_AVR_BUTTON = LOW;  // we can keep this signal low (to save power) since the ATmega is not yet up, even if low means "pressed"
 	O_BOOST = LOW;
 	I_BUTTON = HIGH;     // set to weak high => pullups!
 	I_AVR_ONLINE = HIGH; // set to weak high => pullups!
@@ -157,7 +157,7 @@ unsigned long int ticks_since(unsigned long since)
 	return (now + (1 + ULONG_MAX - since));
 }
 
-void transition_to_state(int new_state)
+void transition_to_state(char new_state)
 {
 	state_start_time = system_tick;
 	state = new_state;
@@ -173,7 +173,7 @@ void main()
 		switch (state) {
 		case SLEEP:
 			O_BOOST = LOW;
-			O_AVR_BUTTON = LOW;
+			O_AVR_BUTTON = LOW; // to save power (prevent back-feeding power to AVR thru input protection diode)
 
 			PCON = 0x02; // Stop/PowerDown Mode
 			_nop_();     // We need at least one NOP after waking up
@@ -181,23 +181,25 @@ void main()
 			transition_to_state(IDLE);
 			break;
 
-		case IDLE:
+		case IDLE: // wait for button press
 			O_AVR_BUTTON = button_state;
 
-			if(button_state == LOW){
+			if(button_state == LOW){ // button pressed
 				transition_to_state(BOOT);
 			}
 			break;
 
 		case BOOT:
 			O_BOOST = HIGH; // powering the booster, avr, 5v rail
-			O_AVR_BUTTON = button_state;
+			// O_AVR_BUTTON = button_state; avoid setting button here in case of debounce issue
 
-			if (avr_online_state == HIGH){
+			if (avr_online_state == HIGH){ // received ACK from AVR
+				O_AVR_BUTTON = button_state;
 				transition_to_state(ONLINE);
 			}
 
-			if (ticks_since(state_start_time) > 1000){
+			if (ticks_since(state_start_time) > 1000){ // AVR timeout
+				O_AVR_BUTTON = button_state;
 				transition_to_state(SLEEP);
 			}
 
@@ -206,7 +208,8 @@ void main()
 		case ONLINE:
 			O_AVR_BUTTON = button_state;
 
-			if (avr_online_state == LOW) {
+			if (avr_online_state == LOW) { // AVR going offline
+				O_BOOST = LOW; // turn off boost converter ASAP
 				transition_to_state(SLEEP);
 			}
 
