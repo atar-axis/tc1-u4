@@ -25,6 +25,6 @@ Open it but leave everything as it is, except:
 which is set to 12.000 MHz.
 
 Press "Open Code File" and select the firmware (u4.hex).
-Press "Download/Program" and hook up 3V3 to VCC (power the IC).
+Press "Download/Program" and hook up 3.3V to the chips VCC (power the IC).
 
 Wait for the firmware being uploaded.
